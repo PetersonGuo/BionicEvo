@@ -40,9 +40,12 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+
 
 /* USER CODE BEGIN PV */
 
@@ -54,6 +57,7 @@ static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -79,7 +83,8 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  char msg[10];
+  uint16_t readValue = 0, PWM;
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -94,9 +99,9 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM1_Init();
   MX_TIM3_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
-  //HAL_ADC_Start(&hadc1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
@@ -105,33 +110,31 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
 
-  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, 470);
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, 470);
-  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, 470);
-  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, 470);
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, 470);
-  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, 470);
+  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, 480);
+  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, 480);
+  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, 480);
+  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, 480);
+  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, 480);
+  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, 480);
 
-  uint16_t readValue = 0;
-  uint16_t PWM;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  //HAL_ADC_PollForConversion(&hadc1,1000);
-	  //readValue = HAL_ADC_GetValue(&hadc1);
+      HAL_ADC_Start(&hadc1);
+      HAL_ADC_PollForConversion(&hadc1, 1);
+	  readValue = HAL_ADC_GetValue(&hadc1) << 4;
 
-	  //PWM = 250 + ++readValue%180/4.1;
-	  //__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, PWM);
+	  sprintf(msg, "%hu\r\n", readValue);
 
-	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, 470);
-	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, 470);
-	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, 470);
-	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, 470);
-	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, 470);
-	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, 470);
+	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, 480);
+	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, 480);
+	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, 480);
+	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, 480);
+	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, 480);
+	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, 480);
 
 	  HAL_Delay(2000);
 	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, 2300);
@@ -192,6 +195,58 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
@@ -411,8 +466,9 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
