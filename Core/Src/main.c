@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 /* USER CODE END Includes */
 
@@ -32,7 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define ADC_SIZE 5
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,12 +49,12 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
-UART_HandleTypeDef huart6;
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 const uint16_t BASE = 500;
 const uint16_t INC = (2400 - BASE)/180;
-uint16_t rawValues[5];
+uint16_t rawValues[ADC_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -64,10 +65,10 @@ static void MX_TIM2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_USART6_UART_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
-int pot_serv_map(int);
-int serv_angle(int);
+uint8_t pot_serv_map(uint16_t);
+uint16_t serv_angle(uint8_t);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -78,7 +79,7 @@ int serv_angle(int);
  * @param val potentiometer value
  * @retval int Servo angle
  */
-int pot_serv_map(int val) {
+uint8_t pot_serv_map(uint16_t val) {
 	return val/4095.0*180;
 }
 
@@ -87,7 +88,7 @@ int pot_serv_map(int val) {
  * @param angle Desired servo angle
  * @retval int PWM value
  */
-int serv_angle(int angle) {
+uint16_t serv_angle(uint8_t angle) {
 	if (angle > 180) {
 		angle = 180;
 	} else if (angle < 0) {
@@ -97,8 +98,7 @@ int serv_angle(int angle) {
 	return BASE + INC*angle;
 }
 
-uint8_t convCompleted = 0;
-
+bool convCompleted = 0;
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 	convCompleted = 1;
 }
@@ -111,7 +111,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	char msg[64];
+	uint16_t values[ADC_SIZE];
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -120,7 +121,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  uint16_t values[5];
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -137,15 +138,31 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM3_Init();
   MX_ADC1_Init();
-  MX_USART6_UART_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, 5);
+
+  sprintf(msg,"ADC1 INIT: Success\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  sprintf(msg,"TIMER1, CHANNEL 3 PWM INIT: Success\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  sprintf(msg,"TIMER2, CHANNEL 2 PWM INIT: Success\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  sprintf(msg,"TIMER3, CHANNEL 2 PWM INIT: Success\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  sprintf(msg,"TIMER3, CHANNEL 1 PWM INIT: Success\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+  sprintf(msg,"TIMER2, CHANNEL 3 PWM INIT: Success\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
 
   __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(0));
@@ -153,8 +170,6 @@ int main(void)
   __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
   __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(0));
   __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(0));
-
-  char msg[64];
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -163,11 +178,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, ADC_SIZE);
 	  while (!convCompleted);
-	  for (uint8_t i = 0; i < hadc1.Init.NbrOfConversion; ++i) {
-		  for (uint8_t j = 0; j < 5; ++j) {
-			  values[j] = (uint16_t) rawValues[j];
-		  }
+
+	  for (uint8_t i = 0; i < ADC_SIZE; ++i) {
+		  values[i] = (uint16_t) rawValues[i];
 	  }
 
   	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3,serv_angle(pot_serv_map(values[0])));
@@ -191,8 +206,9 @@ int main(void)
   //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(180));
   //	  }
 
-  	  sprintf(msg,"%d\r\n", values[0]);
-  	  HAL_UART_Transmit(&huart6, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+  	  sprintf(msg,"%d %d %d %d %d\r\n", rawValues[0], rawValues[1], rawValues[2], rawValues[3], rawValues[4]);
+  	  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+  	  HAL_Delay(100);
   }
   /* USER CODE END 3 */
 }
@@ -283,7 +299,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -300,9 +316,8 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Channel = ADC_CHANNEL_8;
   sConfig.Rank = 3;
-  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -310,9 +325,8 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Channel = ADC_CHANNEL_10;
   sConfig.Rank = 4;
-  sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -534,35 +548,35 @@ static void MX_TIM3_Init(void)
 }
 
 /**
-  * @brief USART6 Initialization Function
+  * @brief USART2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_USART6_UART_Init(void)
+static void MX_USART2_UART_Init(void)
 {
 
-  /* USER CODE BEGIN USART6_Init 0 */
+  /* USER CODE BEGIN USART2_Init 0 */
 
-  /* USER CODE END USART6_Init 0 */
+  /* USER CODE END USART2_Init 0 */
 
-  /* USER CODE BEGIN USART6_Init 1 */
+  /* USER CODE BEGIN USART2_Init 1 */
 
-  /* USER CODE END USART6_Init 1 */
-  huart6.Instance = USART6;
-  huart6.Init.BaudRate = 115200;
-  huart6.Init.WordLength = UART_WORDLENGTH_8B;
-  huart6.Init.StopBits = UART_STOPBITS_1;
-  huart6.Init.Parity = UART_PARITY_NONE;
-  huart6.Init.Mode = UART_MODE_TX_RX;
-  huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart6.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart6) != HAL_OK)
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART6_Init 2 */
+  /* USER CODE BEGIN USART2_Init 2 */
 
-  /* USER CODE END USART6_Init 2 */
+  /* USER CODE END USART2_Init 2 */
 
 }
 
