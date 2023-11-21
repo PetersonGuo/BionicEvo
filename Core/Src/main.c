@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +42,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
@@ -49,34 +51,58 @@ TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart6;
 
 /* USER CODE BEGIN PV */
-
+const uint16_t BASE = 500;
+const uint16_t INC = (2400 - BASE)/180;
+uint16_t rawValues[6];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USART6_UART_Init(void);
 /* USER CODE BEGIN PFP */
-#ifdef __GNUC__
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif
+int pot_serv_map(int);
+int serv_angle(int);
 
-PUTCHAR_PROTOTYPE
-{
-  HAL_UART_Transmit(&huart6, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-  return ch;
-}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+/*
+ * @brief Maps potentiometer value (0-1023) to servo angle (0-180)
+ * @param val potentiometer value
+ * @retval int Servo angle
+ */
+int pot_serv_map(int val) {
+	return val/6204*180;
+}
+
+/*
+ * @brief Takes in an angle and returns a PWM vaue
+ * @param angle Desired servo angle
+ * @retval int PWM value
+ */
+int serv_angle(int angle) {
+	if (angle > 180) {
+		angle = 180;
+	} else if (angle < 0) {
+		angle = 0;
+	}
+
+	return BASE + INC*angle;
+}
+
+uint8_t convCompleted = 0;
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
+	convCompleted = 1;
+}
 /* USER CODE END 0 */
 
 /**
@@ -95,7 +121,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  uint16_t readValue = 0, PWM;
+  uint16_t values[6];
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -107,12 +133,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM2_Init();
   MX_TIM1_Init();
   MX_TIM3_Init();
   MX_ADC1_Init();
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
+  HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, 6);
 
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
@@ -122,44 +150,55 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
 
-  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, 480);
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, 480);
-  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, 480);
-  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, 480);
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, 480);
-  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, 480);
+  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(0));
+  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(0));
+  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
+  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(0));
+  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(0));
+  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, serv_angle(0));
 
+  char msg[64];
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-      HAL_ADC_Start(&hadc1);
-      HAL_ADC_PollForConversion(&hadc1, 1);
-	  readValue = HAL_ADC_GetValue(&hadc1) << 4;
-
-	  printf("%hu\r\n", &readValue);
-
-	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, 480);
-	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, 480);
-	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, 480);
-	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, 480);
-	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, 480);
-	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, 480);
-
-	  HAL_Delay(2000);
-	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, 2300);
-	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, 2300);
-	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, 2300);
-	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, 2300);
-	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, 2300);
-	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, 2300);
-
-	  HAL_Delay(2000);
+  while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  while (!convCompleted);
+	  for (uint8_t i = 0; i < hadc1.Init.NbrOfConversion; ++i) {
+		  for (uint8_t j = 0; j < 6; ++j) {
+			  values[j] = (uint16_t) rawValues[j];
+		  }
+	  }
+
+  	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3,serv_angle(pot_serv_map(values[0])));
+  	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,serv_angle(pot_serv_map(values[1])));
+  	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,serv_angle(pot_serv_map(values[2])));
+  	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,serv_angle(pot_serv_map(values[3])));
+  	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3,serv_angle(pot_serv_map(values[4])));
+  	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,serv_angle(pot_serv_map(values[5])));
+
+
+  //	  if (HAL_GetTick() % 4000 <= 25) {
+  //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(0));
+  //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
+  //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(0));
+  //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(0));
+  //		  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, serv_angle(0));
+  //	  }
+  //
+  //	  if (HAL_GetTick() % 4000 >= 2000 - 25 && HAL_GetTick() % 4000 <= 2000 + 25) {
+  //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(180));
+  //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(180));
+  //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(180));
+  //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(180));
+  //		  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, serv_angle(180));
+  //	  }
+
+  	  sprintf(msg,"%d\r\n", values[0]);
+  	  HAL_UART_Transmit(&huart6, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
   }
   /* USER CODE END 3 */
 }
@@ -232,13 +271,13 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.NbrOfConversion = 6;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -250,7 +289,54 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = 3;
+  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Rank = 4;
+  sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_10;
+  sConfig.Rank = 5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_11;
+  sConfig.Rank = 6;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -496,6 +582,22 @@ static void MX_USART6_UART_Init(void)
   /* USER CODE BEGIN USART6_Init 2 */
 
   /* USER CODE END USART6_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }
 

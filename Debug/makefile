@@ -61,7 +61,7 @@ main-build: BionicEvo.elf secondary-outputs
 
 # Tool invocations
 BionicEvo.elf BionicEvo.map: $(OBJS) $(USER_OBJS) /home/petersonguo/Documents/Projects/STM/BionicEvo/STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "BionicEvo.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/petersonguo/Documents/Projects/STM/BionicEvo/STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="BionicEvo.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "BionicEvo.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/petersonguo/Documents/Projects/STM/BionicEvo/STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="BionicEvo.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
