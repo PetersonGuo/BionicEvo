@@ -34,6 +34,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define ADC_SIZE 5
+#define NUM_PAST_VAL 10
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,6 +56,7 @@ UART_HandleTypeDef huart2;
 const uint16_t BASE = 500;
 const uint16_t INC = (2400 - BASE)/180;
 uint16_t rawValues[ADC_SIZE];
+uint16_t pastValues[ADC_SIZE][NUM_PAST_VAL];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,6 +71,8 @@ static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 uint8_t pot_serv_map(uint16_t);
 uint16_t serv_angle(uint8_t);
+void push_front(uint16_t[ADC_SIZE][NUM_PAST_VAL],uint16_t[ADC_SIZE],size_t,size_t);
+uint16_t average(uint16_t[NUM_PAST_VAL],size_t);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -96,6 +100,36 @@ uint16_t serv_angle(uint8_t angle) {
 	}
 
 	return BASE + INC*angle;
+}
+
+/*
+ * @brief Averages an array
+ * @param arr The array to average
+ * @param size The array size
+ * @retval int Average value of the array
+ */
+uint16_t average(uint16_t arr[NUM_PAST_VAL], size_t size) {
+	uint32_t sum = 0;
+	for (size_t i = 0; i < size; ++i) {
+		sum += arr[i];
+	}
+	return ((double) sum) / size;
+}
+
+/*
+ * @brief Pushes values to front of array
+ * @param arr The array to push to
+ * @param val The array vals to push
+ * @param size1 The first array size
+ * @param size2 The second array size
+ */
+void push_front(uint16_t arr[ADC_SIZE][NUM_PAST_VAL], uint16_t val[ADC_SIZE], size_t size1, size_t size2) {
+	for (size_t i = 0; i < ADC_SIZE; ++i) {
+		for (size_t j = NUM_PAST_VAL-1; j > 0; --j) {
+			arr[i][j] = arr[i][j-1];
+		}
+		arr[i][0] = val[i];
+	}
 }
 
 bool convCompleted = 0;
@@ -164,6 +198,13 @@ int main(void)
   sprintf(msg,"TIMER2, CHANNEL 3 PWM INIT: Success\r\n");
   HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
+  HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, ADC_SIZE);
+  for (uint8_t i = 0; i < NUM_PAST_VAL; ++i) {
+	  push_front(pastValues,rawValues,NUM_PAST_VAL,ADC_SIZE);
+  }
+  sprintf(msg,"ADC INIT: Success\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+
 
   __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(0));
   __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(0));
@@ -181,15 +222,17 @@ int main(void)
 	  HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, ADC_SIZE);
 	  while (!convCompleted);
 
-	  for (uint8_t i = 0; i < ADC_SIZE; ++i) {
-		  values[i] = (uint16_t) rawValues[i];
-	  }
+	  push_front(pastValues,rawValues,NUM_PAST_VAL,ADC_SIZE);
 
-  	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3,serv_angle(pot_serv_map(values[0])));
-  	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,serv_angle(pot_serv_map(values[1])));
-  	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,serv_angle(pot_serv_map(values[2])));
-  	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,serv_angle(pot_serv_map(values[3])));
-  	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3,serv_angle(pot_serv_map(values[4])));
+	  for (uint8_t i = 0; i < ADC_SIZE; ++i) {
+		  values[i] = average(pastValues[i],NUM_PAST_VAL);
+  	  }
+
+  	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[0])));
+  	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[1])));
+  	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[2])));
+  	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,serv_angle(pot_serv_map(rawValues[3])));
+  	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[4])));
 
 
   //	  if (HAL_GetTick() % 4000 <= 25) {
@@ -206,7 +249,7 @@ int main(void)
   //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(180));
   //	  }
 
-  	  sprintf(msg,"%d %d %d %d %d\r\n", rawValues[0], rawValues[1], rawValues[2], rawValues[3], rawValues[4]);
+  	  sprintf(msg,"%d %d %d %d %d\r\n", pastValues[0][0], pastValues[1][0], pastValues[2][0], pastValues[3][0], pastValues[4][0]);
   	  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
   	  HAL_Delay(100);
   }
@@ -299,7 +342,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
