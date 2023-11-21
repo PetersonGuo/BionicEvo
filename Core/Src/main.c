@@ -53,7 +53,7 @@ UART_HandleTypeDef huart6;
 /* USER CODE BEGIN PV */
 const uint16_t BASE = 500;
 const uint16_t INC = (2400 - BASE)/180;
-uint16_t rawValues[6];
+uint16_t rawValues[5];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -121,7 +121,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  uint16_t values[6];
+  uint16_t values[5];
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -140,14 +140,13 @@ int main(void)
   MX_ADC1_Init();
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, 6);
+  HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, 5);
 
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
 
   __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(0));
@@ -155,7 +154,6 @@ int main(void)
   __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
   __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(0));
   __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(0));
-  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, serv_angle(0));
 
   char msg[64];
   /* USER CODE END 2 */
@@ -168,7 +166,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  while (!convCompleted);
 	  for (uint8_t i = 0; i < hadc1.Init.NbrOfConversion; ++i) {
-		  for (uint8_t j = 0; j < 6; ++j) {
+		  for (uint8_t j = 0; j < 5; ++j) {
 			  values[j] = (uint16_t) rawValues[j];
 		  }
 	  }
@@ -178,7 +176,6 @@ int main(void)
   	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,serv_angle(pot_serv_map(values[2])));
   	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,serv_angle(pot_serv_map(values[3])));
   	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3,serv_angle(pot_serv_map(values[4])));
-  	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,serv_angle(pot_serv_map(values[5])));
 
 
   //	  if (HAL_GetTick() % 4000 <= 25) {
@@ -186,7 +183,6 @@ int main(void)
   //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
   //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(0));
   //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(0));
-  //		  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, serv_angle(0));
   //	  }
   //
   //	  if (HAL_GetTick() % 4000 >= 2000 - 25 && HAL_GetTick() % 4000 <= 2000 + 25) {
@@ -194,7 +190,6 @@ int main(void)
   //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(180));
   //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(180));
   //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(180));
-  //		  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1, serv_angle(180));
   //	  }
 
   	  sprintf(msg,"%d\r\n", values[0]);
@@ -277,7 +272,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 6;
+  hadc1.Init.NbrOfConversion = 5;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -326,17 +321,8 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_10;
-  sConfig.Rank = 5;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
   sConfig.Channel = ADC_CHANNEL_11;
-  sConfig.Rank = 6;
+  sConfig.Rank = 5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -400,10 +386,6 @@ static void MX_TIM1_Init(void)
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
