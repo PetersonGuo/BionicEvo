@@ -68,19 +68,18 @@ static void MX_USART6_UART_Init(void);
 /* USER CODE BEGIN PFP */
 int pot_serv_map(int);
 int serv_angle(int);
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
 /*
- * @brief Maps potentiometer value (0-1023) to servo angle (0-180)
+ * @brief Maps potentiometer value (0-4095) to servo angle (0-180)
  * @param val potentiometer value
  * @retval int Servo angle
  */
 int pot_serv_map(int val) {
-	return val/6204*180;
+	return val/4095.0*180;
 }
 
 /*
