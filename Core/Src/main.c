@@ -75,6 +75,7 @@ uint16_t serv_angle(uint8_t);
 void push_front(uint16_t[ADC_SIZE][NUM_PAST_VAL],uint16_t[ADC_SIZE],size_t,size_t);
 void run(void);
 void test(uint8_t);
+void peace_sign();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -106,7 +107,7 @@ uint8_t pot_serv_map(uint16_t val) {
 uint16_t serv_angle(uint8_t angle) {
 	if (angle > 180) {
 		angle = 180;
-	} else if (angle < 60) {
+	} else if (angle < 40) {
 		angle = 40;
 	}
 
@@ -129,6 +130,14 @@ void push_front(uint16_t arr[ADC_SIZE][NUM_PAST_VAL], uint16_t val[ADC_SIZE], si
 	}
 }
 
+void peace_sign() {
+	__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(180));
+	__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(0));
+	__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
+	__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(180));
+	HAL_Delay(2000);
+}
+
 /*
  * Testing function for demo tests
  */
@@ -138,13 +147,11 @@ void test(uint8_t runtime) {
 		__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(0));
 		__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
 		__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(0));
-		__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(0));
 		HAL_Delay(1000);
 		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(180));
 		__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(180));
 		__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(180));
 		__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(180));
-		__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(180));
 		HAL_Delay(1000);
 	}
 }
@@ -157,6 +164,23 @@ void run(void) {
 	while (!convCompleted);
 
 	push_front(pastValues,rawValues,NUM_PAST_VAL,ADC_SIZE);
+
+	uint16_t s[ADC_SIZE][2];
+	for (uint8_t j = 0; j < ADC_SIZE; ++j) {
+		for (uint8_t i = 0; i < 5; ++i) {
+			s[j][0] += pastValues[j][i];
+			s[j][1] += pastValues[j][i+5];
+		}
+		s[j][0] /= 5;
+		s[j][1] /= 5;
+	}
+
+	if (s[0][1] - s[0][0] <= -69 && s[2][1] - s[2][0] <= -69) {
+		peace_sign();
+		for (uint8_t j = 0; j < NUM_PAST_VAL; ++j) {
+			push_front(pastValues,rawValues,NUM_PAST_VAL,ADC_SIZE);
+		}
+	}
 
 	__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[0])));
 	__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[1])));
