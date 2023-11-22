@@ -73,6 +73,8 @@ static void MX_USART2_UART_Init(void);
 uint8_t pot_serv_map(uint16_t);
 uint16_t serv_angle(uint8_t);
 void push_front(uint16_t[ADC_SIZE][NUM_PAST_VAL],uint16_t[ADC_SIZE],size_t,size_t);
+void run(void);
+void test(uint8_t);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -133,6 +135,23 @@ void test(uint8_t runtime) {
 		__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(180));
 		HAL_Delay(1000);
 	}
+}
+
+void run(void) {
+	HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, ADC_SIZE);
+	while (!convCompleted);
+
+	push_front(pastValues,rawValues,NUM_PAST_VAL,ADC_SIZE);
+
+	__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[0])));
+	__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[1])));
+  	__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[2])));
+  	__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,serv_angle(pot_serv_map(rawValues[3])));
+  	__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[4])));
+
+  	sprintf(msg,"%d %d %d %d %d\r\n", pastValues[0][0], pastValues[1][0], pastValues[2][0], pastValues[3][0], pastValues[4][0]);
+  	HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+  	HAL_Delay(100);
 }
 
 bool convCompleted = 0;
@@ -221,20 +240,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, ADC_SIZE);
-	  while (!convCompleted);
-
-	  push_front(pastValues,rawValues,NUM_PAST_VAL,ADC_SIZE);
-
-  	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[0])));
-  	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[1])));
-  	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[2])));
-  	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,serv_angle(pot_serv_map(rawValues[3])));
-  	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[4])));
-
-  	  sprintf(msg,"%d %d %d %d %d\r\n", pastValues[0][0], pastValues[1][0], pastValues[2][0], pastValues[3][0], pastValues[4][0]);
-  	  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
-  	  HAL_Delay(100);
+	  run();
+//	  test();
   }
   /* USER CODE END 3 */
 }
