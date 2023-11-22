@@ -99,15 +99,15 @@ uint8_t pot_serv_map(uint16_t val) {
 }
 
 /*
- * @brief Takes in an angle and returns a PWM vaue, Restricts angles to 90-180 for this use case
+ * @brief Takes in an angle and returns a PWM vaue, Restricts angles to 0-180 for this use case
  * @param angle Desired servo angle
  * @retval int PWM value
  */
 uint16_t serv_angle(uint8_t angle) {
 	if (angle > 180) {
 		angle = 180;
-	} else if (angle < 90) {
-		angle = 90;
+	} else if (angle < 0) {
+		angle = 0;
 	}
 
 	return BASE + INC*angle;
