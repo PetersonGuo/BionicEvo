@@ -81,6 +81,15 @@ void test(uint8_t);
 /* USER CODE BEGIN 0 */
 
 /*
+ * Callback override for HAL_ADC
+ * Tells program that ADC conversion is complete
+ */
+bool convCompleted = 0;
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
+	convCompleted = 1;
+}
+
+/*
  * @brief Maps potentiometer value (0-4095) to servo angle (0-180)
  * @param val potentiometer value
  * @retval int Servo angle
@@ -120,6 +129,9 @@ void push_front(uint16_t arr[ADC_SIZE][NUM_PAST_VAL], uint16_t val[ADC_SIZE], si
 	}
 }
 
+/*
+ * Testing function for demo tests
+ */
 void test(uint8_t runtime) {
 	for (uint8_t i = 0; i < runtime; ++i) {
 		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(0));
@@ -137,6 +149,9 @@ void test(uint8_t runtime) {
 	}
 }
 
+/*
+ * Main run function
+ */
 void run(void) {
 	HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, ADC_SIZE);
 	while (!convCompleted);
@@ -152,11 +167,6 @@ void run(void) {
   	sprintf(msg,"%d %d %d %d %d\r\n", pastValues[0][0], pastValues[1][0], pastValues[2][0], pastValues[3][0], pastValues[4][0]);
   	HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
   	HAL_Delay(100);
-}
-
-bool convCompleted = 0;
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-	convCompleted = 1;
 }
 /* USER CODE END 0 */
 
@@ -240,8 +250,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  run();
-//	  test();
+//	  run();
+	  test(100);
   }
   /* USER CODE END 3 */
 }
