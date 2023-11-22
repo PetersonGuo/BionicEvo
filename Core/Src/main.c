@@ -33,7 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ADC_SIZE 5
+#define ADC_SIZE 4
 #define NUM_PAST_VAL 10
 /* USER CODE END PD */
 
@@ -99,15 +99,15 @@ uint8_t pot_serv_map(uint16_t val) {
 }
 
 /*
- * @brief Takes in an angle and returns a PWM vaue
+ * @brief Takes in an angle and returns a PWM vaue, Restricts angles to 90-180 for this use case
  * @param angle Desired servo angle
  * @retval int PWM value
  */
 uint16_t serv_angle(uint8_t angle) {
 	if (angle > 180) {
 		angle = 180;
-	} else if (angle < 0) {
-		angle = 0;
+	} else if (angle < 90) {
+		angle = 90;
 	}
 
 	return BASE + INC*angle;
@@ -162,11 +162,20 @@ void run(void) {
 	__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[1])));
   	__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[2])));
   	__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,serv_angle(pot_serv_map(rawValues[3])));
-  	__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[4])));
 
-  	sprintf(msg,"%d %d %d %d %d\r\n", pastValues[0][0], pastValues[1][0], pastValues[2][0], pastValues[3][0], pastValues[4][0]);
+  	sprintf(msg,"%d %d %d %d\r\n", pastValues[0][0], pastValues[1][0], pastValues[2][0], pastValues[3][0]);
   	HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
   	HAL_Delay(100);
+}
+
+/*
+ * Set all servos to the same angle
+ */
+void set_all_servs(uint8_t angle) {
+	__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3,serv_angle(angle));
+	__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,serv_angle(angle));
+	__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,serv_angle(angle));
+	__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,serv_angle(angle));
 }
 /* USER CODE END 0 */
 
@@ -225,10 +234,6 @@ int main(void)
   sprintf(msg,"TIMER3, CHANNEL 1 PWM INIT: Success\r\n");
   HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
-  sprintf(msg,"TIMER2, CHANNEL 3 PWM INIT: Success\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
-
   HAL_ADC_Start_DMA(&hadc1,(uint32_t *) rawValues, ADC_SIZE);
   for (uint8_t i = 0; i < NUM_PAST_VAL; ++i) {
 	  push_front(pastValues,rawValues,NUM_PAST_VAL,ADC_SIZE);
@@ -237,11 +242,7 @@ int main(void)
   HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
 
-  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(0));
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(0));
-  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
-  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(0));
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(0));
+  set_all_servs(0);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -250,8 +251,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-//	  run();
-	  test(100);
+	  run();
+//	  test(100);
+//	  set_all_servs(90);
   }
   /* USER CODE END 3 */
 }
@@ -330,7 +332,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 5;
+  hadc1.Init.NbrOfConversion = 4;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -368,17 +370,8 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_10;
-  sConfig.Rank = 4;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
   sConfig.Channel = ADC_CHANNEL_11;
-  sConfig.Rank = 5;
+  sConfig.Rank = 4;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -513,10 +506,6 @@ static void MX_TIM2_Init(void)
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
   }
