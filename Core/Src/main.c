@@ -57,6 +57,7 @@ const uint16_t BASE = 500;
 const uint16_t INC = (2400 - BASE)/180;
 uint16_t rawValues[ADC_SIZE];
 uint16_t pastValues[ADC_SIZE][NUM_PAST_VAL];
+char msg[64];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,7 +73,6 @@ static void MX_USART2_UART_Init(void);
 uint8_t pot_serv_map(uint16_t);
 uint16_t serv_angle(uint8_t);
 void push_front(uint16_t[ADC_SIZE][NUM_PAST_VAL],uint16_t[ADC_SIZE],size_t,size_t);
-uint16_t average(uint16_t[NUM_PAST_VAL],size_t);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -103,20 +103,6 @@ uint16_t serv_angle(uint8_t angle) {
 }
 
 /*
- * @brief Averages an array
- * @param arr The array to average
- * @param size The array size
- * @retval int Average value of the array
- */
-uint16_t average(uint16_t arr[NUM_PAST_VAL], size_t size) {
-	uint32_t sum = 0;
-	for (size_t i = 0; i < size; ++i) {
-		sum += arr[i];
-	}
-	return ((double) sum) / size;
-}
-
-/*
  * @brief Pushes values to front of array
  * @param arr The array to push to
  * @param val The array vals to push
@@ -129,6 +115,23 @@ void push_front(uint16_t arr[ADC_SIZE][NUM_PAST_VAL], uint16_t val[ADC_SIZE], si
 			arr[i][j] = arr[i][j-1];
 		}
 		arr[i][0] = val[i];
+	}
+}
+
+void test(uint8_t runtime) {
+	for (uint8_t i = 0; i < runtime; ++i) {
+		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(0));
+		__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(0));
+		__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
+		__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(0));
+		__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(0));
+		HAL_Delay(1000);
+		__HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3, serv_angle(180));
+		__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(180));
+		__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(180));
+		__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(180));
+		__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(180));
+		HAL_Delay(1000);
 	}
 }
 
@@ -145,8 +148,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	char msg[64];
-	uint16_t values[ADC_SIZE];
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -224,30 +226,11 @@ int main(void)
 
 	  push_front(pastValues,rawValues,NUM_PAST_VAL,ADC_SIZE);
 
-	  for (uint8_t i = 0; i < ADC_SIZE; ++i) {
-		  values[i] = average(pastValues[i],NUM_PAST_VAL);
-  	  }
-
   	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[0])));
   	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[1])));
   	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,serv_angle(pot_serv_map(rawValues[2])));
   	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,serv_angle(pot_serv_map(rawValues[3])));
   	  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3,serv_angle(pot_serv_map(rawValues[4])));
-
-
-  //	  if (HAL_GetTick() % 4000 <= 25) {
-  //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(0));
-  //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(0));
-  //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(0));
-  //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(0));
-  //	  }
-  //
-  //	  if (HAL_GetTick() % 4000 >= 2000 - 25 && HAL_GetTick() % 4000 <= 2000 + 25) {
-  //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2, serv_angle(180));
-  //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, serv_angle(180));
-  //		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1, serv_angle(180));
-  //		  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3, serv_angle(180));
-  //	  }
 
   	  sprintf(msg,"%d %d %d %d %d\r\n", pastValues[0][0], pastValues[1][0], pastValues[2][0], pastValues[3][0], pastValues[4][0]);
   	  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
