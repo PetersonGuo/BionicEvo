@@ -106,8 +106,8 @@ uint8_t pot_serv_map(uint16_t val) {
 uint16_t serv_angle(uint8_t angle) {
 	if (angle > 180) {
 		angle = 180;
-	} else if (angle < 0) {
-		angle = 0;
+	} else if (angle < 60) {
+		angle = 40;
 	}
 
 	return BASE + INC*angle;
@@ -242,7 +242,7 @@ int main(void)
   HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
 
-  set_all_servs(0);
+  set_all_servs(180);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -253,7 +253,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  run();
 //	  test(100);
-//	  set_all_servs(90);
+//	  set_all_servs(180);
   }
   /* USER CODE END 3 */
 }

@@ -1,6 +1,6 @@
 ../Core/Src/main.c:88:6:HAL_ADC_ConvCpltCallback	1
 ../Core/Src/main.c:97:9:pot_serv_map	1
-../Core/Src/main.c:106:10:serv_angle	2
+../Core/Src/main.c:106:10:serv_angle	3
 ../Core/Src/main.c:123:6:push_front	3
 ../Core/Src/main.c:135:6:test	2
 ../Core/Src/main.c:155:6:run	2
