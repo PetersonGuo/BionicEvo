@@ -277,7 +277,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  run();
 //	  test(100);
-//	  set_all_servs(180);
+//	  set_all_servs(0);
   }
   /* USER CODE END 3 */
 }
